@@ -31,7 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY common_router.py site_a1.py site_a2.py site_b1.py site_b2.py \
-     master_wan.py test_red.py README.md GUIA_DEFENSA.md entrypoint.sh ./
+     master_wan.py test_red.py demo_presentacion.txt \
+     README.md GUIA_DEFENSA.md entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]
