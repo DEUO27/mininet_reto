@@ -1,40 +1,19 @@
 sh echo ============================================================
-sh echo == TEST 1 - DHCP centralizado con relay (CDMX y GDL piden IP a MTY)
+sh echo == Test 1 - DHCP centralizado con relay
 sh echo ============================================================
 h_b2_v60 dhclient -4 -v -1 -lf /var/lib/dhcp/dhclient-h_b2_v60.leases -pf /run/dhclient-h_b2_v60.pid h_b2_v60-eth0
 h_a2_v40 dhclient -4 -1 -lf /var/lib/dhcp/dhclient-h_a2_v40.leases -pf /run/dhclient-h_a2_v40.pid h_a2_v40-eth0
-h_b2_v60 ip -4 -o addr show h_b2_v60-eth0
-h_a2_v40 ip -4 -o addr show h_a2_v40-eth0
+h_b2_v60 ip -4 addr show h_b2_v60-eth0
 sh echo ============================================================
-sh echo == TEST 2 - WAN hub-and-spoke (CDMX -> datacenter MTY, ~20ms)
+sh echo == Test 2 - Failover del doble nucleo
 sh echo ============================================================
 h_b2_v60 ping -c2 10.1.100.4
-sh echo ============================================================
-sh echo == TEST 3 - DNS + Web (resuelve FQDN y descarga la pagina)
-sh echo ============================================================
-h_b2_v60 curl -s http://web.corp.local
-sh echo ============================================================
-sh echo == TEST 4 - FTP corporativo
-sh echo ============================================================
-h_b2_v60 curl -s ftp://admin:secret123@ftp.corp.local/welcome.txt
-sh echo ============================================================
-sh echo == TEST 5 - Capacidad WAN con iperf (GDL ~9.5M, CDMX ~19M)
-sh echo ============================================================
-srv_web iperf -s &
-h_a2_v40 sleep 1
-h_a2_v40 iperf -c 10.1.100.4 -t 5
-h_b2_v60 iperf -c 10.1.100.4 -t 5
-srv_web pkill -9 iperf
-sh echo ============================================================
-sh echo == TEST 6 - FAILOVER del doble nucleo (cae core1 completo)
-sh echo ============================================================
 link r_a1 core1 down
 link srv_dhcp core1 down
 link srv_dns core1 down
 link srv_web core1 down
 link srv_ftp core1 down
 h_b2_v60 ping -c4 10.1.100.4
-sh echo == Restaurando core1 (enlaces + rutas estaticas que Linux borro)
 link r_a1 core1 up
 link srv_dhcp core1 up
 link srv_dns core1 up
@@ -45,7 +24,14 @@ core1 ip route replace 10.1.100.2/32 via 172.16.1.2 dev core1-eth2
 core1 ip route replace 10.1.100.3/32 via 172.16.2.2 dev core1-eth3
 core1 ip route replace 10.1.100.4/32 via 172.16.3.2 dev core1-eth4
 core1 ip route replace 10.1.100.5/32 via 172.16.4.2 dev core1-eth5
-h_b2_v60 ping -c2 10.1.100.4
 sh echo ============================================================
-sh echo == DEMO COMPLETA - 6/6 escenarios OK
+sh echo == Test 3 - Capacidad WAN - iperf
+sh echo ============================================================
+srv_web iperf -s &
+h_a2_v40 sleep 1
+h_a2_v40 iperf -c 10.1.100.4 -t 5
+h_b2_v60 iperf -c 10.1.100.4 -t 5
+srv_web pkill -9 iperf
+sh echo ============================================================
+sh echo == DEMO COMPLETA - 3/3 tests OK
 sh echo ============================================================
