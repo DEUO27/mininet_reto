@@ -63,10 +63,16 @@ def prep_resolv(sites):
     # ver write_configs y los logs de srv_dhcp). Como cada host tiene /etc
     # privado (privateDirs=['/etc']), sembramos resolv.conf con ese mismo DNS
     # para que la resolucion por FQDN funcione de forma fiable.
+    #
+    # Tambien sembramos un /etc/fstab vacio: /sbin/dhclient-script hace
+    # 'exec </etc/fstab' y si no existe (el /etc privado nace vacio) el script
+    # aborta; dhclient interpreta esa falla como IP en conflicto y responde
+    # DHCPDECLINE aunque el DORA haya cerrado bien.
     for s in sites:
         for h in s.user_hosts:
             h.cmd('rm -f /etc/resolv.conf')
             h.cmd('echo "nameserver 10.1.100.3" > /etc/resolv.conf')
+            h.cmd('touch /etc/fstab')
 
 
 def harden_rp_filter(sites):

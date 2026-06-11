@@ -5,24 +5,24 @@ from common_router import Router
 class SiteA1:
     SITE_ID = 1
     PREFIX = '10.1'
-    VLANS = [10, 20, 30, 40, 80, 99, 110, 120, 130, 140]
+    VLANS = [10,20,30,40,80,99,110,120,130,140]
 
     def __init__(self):
-        self.border_router = None
-        self.core1 = None
-        self.core2 = None
-        self.srv_dhcp = None
-        self.srv_dns = None
-        self.srv_web = None
-        self.srv_ftp = None
-        self.switch = None
-        self.subifs = []
-        self.relay_target = None
-        self.dhcp_server_ip = '10.1.100.2'
-        self.dns_server_ip = '10.1.100.3'
-        self.web_server_ip = '10.1.100.4'
-        self.ftp_server_ip = '10.1.100.5'
-        self.user_subnet = '10.1.0.0/16'
+        self.border_router =None
+        self.core1= None
+        self.core2= None
+        self.srv_dhcp=None
+        self.srv_dns =None
+        self.srv_web =None
+        self.srv_ftp =None
+        self.switch=None
+        self.subifs=[]
+        self.relay_target= None
+        self.dhcp_server_ip ='10.1.100.2'
+        self.dns_server_ip ='10.1.100.3'
+        self.web_server_ip ='10.1.100.4'
+        self.ftp_server_ip ='10.1.100.5'
+        self.user_subnet ='10.1.0.0/16'
         self.user_hosts = []
         # nombre (el literal pasado a addHost) -> objeto host: permite ubicar
         # hosts por nombre sin leer atributos de Mininet fuera de los labs

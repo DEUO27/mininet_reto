@@ -252,11 +252,49 @@ mininet> link srv_web core1 down
 mininet> link srv_ftp core1 down
 mininet> h_a2_v40 ping -c4 10.1.100.4        # se recupera por core2
 ```
-Para restaurar: repite los `link ... up`.
+Para restaurar: repite los `link ... up` **y vuelve a cargar las rutas estáticas de core1**:
+
+```text
+mininet> link r_a1 core1 up
+mininet> link srv_dhcp core1 up
+mininet> link srv_dns core1 up
+mininet> link srv_web core1 up
+mininet> link srv_ftp core1 up
+mininet> core1 ip route replace default via 172.16.0.1 dev core1-eth0
+mininet> core1 ip route replace 10.1.100.2/32 via 172.16.1.2 dev core1-eth2
+mininet> core1 ip route replace 10.1.100.3/32 via 172.16.2.2 dev core1-eth3
+mininet> core1 ip route replace 10.1.100.4/32 via 172.16.3.2 dev core1-eth4
+mininet> core1 ip route replace 10.1.100.5/32 via 172.16.4.2 dev core1-eth5
+mininet> h_a2_v40 ping -c2 10.1.100.4        # confirma que todo volvió
+```
+
+> ⚠️ **Las rutas de core1 NO vuelven solas.** Al caer una interfaz, Linux **borra** las rutas
+> estáticas de un solo nexthop que salían por ella (el default y las `/32` de core1) y no las
+> reinstala al subir el enlace. En cambio, las rutas **multipath** de `r_a1` y de los servidores
+> sí reviven sus nexthops solas. Si restauras los `link ... up` sin recargar las rutas de core1,
+> los flujos que el hash ECMP mande por core1 caen en un hoyo negro (una sede queda "sin red"
+> mientras otra funciona — el hash decide por flujo).
 > Nota honesta: el ECMP de Linux reparte **por flujo** (hash), no por paquete; por eso la
 > redundancia se demuestra con este failover y **no** viendo paquetes alternarse entre cores.
 > El routing es estático (sin OSPF/HSRP, no son de clase), así que la recuperación no es
 > instantánea: es la limitación que enseña la práctica s7.
+
+### 4.10 — Capacidad WAN con iperf (s4)
+
+Los enlaces WAN tienen ancho de banda limitado con TCLink (`bw=`): A2/GDL y B1/QRO a
+**10 Mb/s**, B2/CDMX a **20 Mb/s**, todos con 10 ms de delay. Mídelo con iperf manual
+(los hosts necesitan IP del paso 4.3):
+
+```text
+mininet> srv_web iperf -s &
+mininet> h_a2_v40 iperf -c 10.1.100.4 -t 5     # GDL:  ~9.5 Mbits/sec
+mininet> h_b2_v60 iperf -c 10.1.100.4 -t 5     # CDMX: ~19 Mbits/sec
+mininet> srv_web pkill -9 iperf
+```
+
+> ⚠️ NO uses el comando `iperf h1 h2` integrado de la CLI contra los servidores: usa la IP
+> del enlace interno (`172.16.x.x`), que no es enrutable desde las sucursales, y se cuelga.
+> El iperf manual contra la IP de servicio (`10.1.100.4`) sí mide el WAN real.
 
 ---
 
@@ -299,6 +337,8 @@ sudo pkill -f dnsmasq ; sudo pkill -f dhcrelay ; sudo pkill -f pyftpdlib   # por
 |---|---|
 | El host no obtiene IP por DHCP | Usa siempre la forma con `-sf/-lf/-pf` del paso 4.3 y mira `srv_dhcp tail -f /tmp/dhcp_corp.log`. Asegúrate de haber hecho las pruebas de routing (4.2) antes; el relay necesita las rutas para el camino de retorno. |
 | `dhclient` se queda en bucle DISCOVER/ACK/DECLINE | Se invocó `dhclient` "a pelo" (sin `-lf`/`-pf` privados): al compartir `/var/lib/dhcp` entre hosts, dhclient confunde su estado con un conflicto y rechaza cada IP con DHCPDECLINE. Usa `dhclient_cmd()` de `master_wan.py` o las opciones del paso 4.3. |
+| `dhclient` cierra DORA pero termina en `DHCPDECLINE ... (declined). Exiting.` | A `/sbin/dhclient-script` le falta `/etc/fstab` (el `/etc` privado de los hosts nace vacío) y dhclient toma esa falla como conflicto de IP. `master_wan.py` ya siembra un `/etc/fstab` vacío por host (`prep_resolv`); si lo ves, estás corriendo una versión vieja. |
+| Después del failover (4.9) una sede queda sin conexión y otra sí funciona | Se subieron los `link ... up` sin recargar las rutas estáticas de core1 (Linux las borra al caer la interfaz y no las reinstala). Corre los `core1 ip route replace ...` del paso 4.9. |
 | `curl ftp://...` no responde | Verifica que `pyftpdlib` esté instalado (`srv_ftp cat /tmp/ftp_share/ftp.log`; si dice *No module named pyftpdlib*, instala el paquete del paso 2). |
 | `dig`/`curl` por FQDN falla pero por IP funciona | Falta el DNS en el host: corre primero el DHCP (4.3); o usa `dig @10.1.100.3 ...` explícito. |
 | Errores al arrancar / "interface exists" | Quedó una corrida previa: `sudo mn -c` y vuelve a lanzar. |
